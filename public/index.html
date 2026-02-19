@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>美图</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 导航 -->
+    <div class="nav" :class="{ hidden: uiHidden }">
+      <span class="nav-item" :class="{ active: tab === 'home' }" @click="switchTab('home')">推荐</span>
+      <span class="nav-item" :class="{ active: tab === 'cached' }" @click="switchTab('cached')">缓存</span>
+      <span class="refresh-btn" :class="{ spinning: isRefreshing }" @click="refresh" v-if="tab === 'home'" title="刷新 (R)">
+        <svg viewBox="0 0 24 24">
+          <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+        </svg>
+      </span>
+    </div>
+
+    <!-- 图片滑动 -->
+    <div class="slider" ref="slider" @scroll="onScroll" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
+      <template v-if="images.length > 0">
+        <div v-for="img in images" :key="img.id" class="slide">
+          <div class="slide-bg" :style="{ backgroundImage: `url(${img.url})` }"></div>
+          
+          <!-- 双击动画 -->
+          <div class="like-animation" :class="{ show: animatingId === img.id }">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </div>
+          
+          <img class="slide-img" :src="img.url" loading="lazy" @click="handleClick(img)">
+          
+          <div class="info" :class="{ hidden: uiHidden }">
+            <div class="author">
+              <img class="author-avatar" :src="img.author.avatar">
+              <span class="author-name">{{ img.author.name }}</span>
+            </div>
+            <div class="title">{{ img.title }}</div>
+            <div class="desc">{{ img.desc }}</div>
+          </div>
+
+          <div class="actions" :class="{ hidden: uiHidden }">
+            <div class="action" :class="{ active: img.isCached }" @click="toggleLike(img)">
+              <div class="action-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </div>
+              <span class="action-num">{{ formatNum(img.likes) }}</span>
+            </div>
+            <div class="action" @click="share(img)">
+              <div class="action-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div v-else class="empty">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+        </svg>
+        <span>暂无内容</span>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" :class="{ show: toast.show }">{{ toast.msg }}</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

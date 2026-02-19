@@ -1,0 +1,3 @@
+*.lock
+db/
+data/
