@@ -226,7 +226,7 @@ createApp({
         };
 
         const onTouchMove = (e) => {
-            if (!touchStartX || !touchStartY || isScrolling) return;
+            if (!touchStartX || !touchStartY) return;
 
             const currentX = e.touches[0].clientX;
             const currentY = e.touches[0].clientY;
@@ -236,10 +236,11 @@ createApp({
             // 判断滑动方向
             if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 10) {
                 isHorizontalSwipe = true;
-            } else if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 10) {
+            } else if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 5) {
                 isHorizontalSwipe = false;
-                // 实时滚动
+                // 实时滚动 - 跟随手指移动
                 if (slider.value) {
+                    e.preventDefault();
                     slider.value.scrollTop = startScrollTop + diffY;
                 }
             }
@@ -264,14 +265,24 @@ createApp({
                     switchTab(tab.value === 'cached' ? 'home' : 'cached');
                 }
             }
-            // 处理垂直滑动切换图片 - 吸附到最近的图片
+            // 处理垂直滑动切换图片 - 根据滑动方向和距离决定切换
             else if (!isHorizontalSwipe) {
                 const slideHeight = slider.value?.clientHeight || window.innerHeight;
                 const currentScrollTop = slider.value?.scrollTop || 0;
-                const targetIndex = Math.round(currentScrollTop / slideHeight);
+                const currentIdx = Math.round(currentScrollTop / slideHeight);
+                
+                // 根据滑动方向调整索引
+                let newIndex = currentIdx;
+                if (diffY > 30 && currentIndex.value < images.value.length - 1) {
+                    // 向上滑动超过阈值，下一张
+                    newIndex = currentIndex.value + 1;
+                } else if (diffY < -30 && currentIndex.value > 0) {
+                    // 向下滑动超过阈值，上一张
+                    newIndex = currentIndex.value - 1;
+                }
                 
                 // 限制索引范围
-                const newIndex = Math.max(0, Math.min(targetIndex, images.value.length - 1));
+                newIndex = Math.max(0, Math.min(newIndex, images.value.length - 1));
                 currentIndex.value = newIndex;
                 scrollToIndex(newIndex);
             }
