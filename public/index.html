@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#000000">
   <title>美图</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <link rel="stylesheet" href="style.css">
@@ -21,23 +24,23 @@
     </div>
 
     <!-- 图片滑动 -->
-    <div class="slider" ref="slider" @scroll="onScroll" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
+    <div class="slider" ref="slider" @scroll="onScroll" @wheel="onWheel" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
       <template v-if="images.length > 0">
         <div v-for="img in images" :key="img.id" class="slide">
           <div class="slide-bg" :style="{ backgroundImage: `url(${img.url})` }"></div>
-          
+
           <!-- 双击动画 -->
           <div class="like-animation" :class="{ show: animatingId === img.id }">
             <svg viewBox="0 0 24 24">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
             </svg>
           </div>
-          
-          <img class="slide-img" :src="img.url" loading="lazy" @click="handleClick(img)">
-          
+
+          <img class="slide-img" :src="img.url" loading="lazy" decoding="async" @click="handleClick(img)">
+
           <div class="info" :class="{ hidden: uiHidden }">
             <div class="author">
-              <img class="author-avatar" :src="img.author.avatar">
+              <img class="author-avatar" :src="img.author.avatar" loading="lazy" decoding="async">
               <span class="author-name">{{ img.author.name }}</span>
             </div>
             <div class="title">{{ img.title }}</div>
@@ -71,6 +74,9 @@
         <span>暂无内容</span>
       </div>
     </div>
+
+    <!-- 加载指示器 -->
+    <div class="loading-indicator" :class="{ show: isLoading }"></div>
 
     <!-- Toast -->
     <div class="toast" :class="{ show: toast.show }">{{ toast.msg }}</div>

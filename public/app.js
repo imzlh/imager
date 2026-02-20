@@ -10,11 +10,12 @@ createApp({
         const uiHidden = ref(false);
         const isRefreshing = ref(false);
         const isSwitching = ref(false);
+        const isLoading = ref(false);
+        const currentIndex = ref(0);
 
-        // 标签页数据缓存 - 使用 Map 存储更完整的状态
         const tabCache = ref(new Map([
-            ['home', { images: [], page: 1, scrollTop: 0, hasMore: true }],
-            ['cached', { images: [], page: 1, scrollTop: 0, hasMore: true, total: 0 }]
+            ['home', { images: [], page: 1, scrollTop: 0, hasMore: true, index: 0 }],
+            ['cached', { images: [], page: 1, scrollTop: 0, hasMore: true, total: 0, index: 0 }]
         ]));
 
         let loading = false;
@@ -25,8 +26,11 @@ createApp({
         // 触摸滑动相关
         let touchStartX = 0;
         let touchStartY = 0;
-        let touchEndX = 0;
+        let touchStartTime = 0;
         let isHorizontalSwipe = false;
+        let isScrolling = false;
+        let scrollTimeout = null;
+        let startScrollTop = 0;
 
         const showToast = (msg) => {
             toast.value = { show: true, msg };
@@ -38,6 +42,7 @@ createApp({
         const fetchImages = async (isRefresh = false) => {
             if (loading) return;
             loading = true;
+            isLoading.value = true;
 
             const cache = getCurrentCache();
             try {
@@ -51,7 +56,6 @@ createApp({
                     images.value.push(...data.images);
                 }
 
-                // 限制缓存数量
                 if (images.value.length > 100) {
                     images.value = images.value.slice(-100);
                 }
@@ -65,12 +69,14 @@ createApp({
             }
 
             loading = false;
+            isLoading.value = false;
             isRefreshing.value = false;
         };
 
         const fetchCached = async (isRefresh = false) => {
             if (loading) return;
             loading = true;
+            isLoading.value = true;
 
             const cache = getCurrentCache();
             try {
@@ -94,6 +100,7 @@ createApp({
             }
 
             loading = false;
+            isLoading.value = false;
         };
 
         const refresh = async () => {
@@ -104,6 +111,8 @@ createApp({
             const cache = getCurrentCache();
             cache.page = 1;
             cache.images = [];
+            cache.index = 0;
+            currentIndex.value = 0;
 
             if (tab.value === 'home') {
                 await fetchImages(true);
@@ -171,50 +180,53 @@ createApp({
             }
         };
 
-        // 切换标签 - 保留完整状态
+        const scrollToIndex = (index) => {
+            if (!slider.value) return;
+            const slideHeight = slider.value.clientHeight;
+            slider.value.scrollTo({
+                top: index * slideHeight,
+                behavior: 'smooth'
+            });
+        };
+
         const switchTab = async (t) => {
             if (tab.value === t || isSwitching.value) return;
             isSwitching.value = true;
 
-            // 保存当前状态
             const currentCache = getCurrentCache();
-            if (slider.value) {
-                currentCache.scrollTop = slider.value.scrollTop;
-                currentCache.images = [...images.value];
-            }
+            currentCache.index = currentIndex.value;
+            currentCache.images = [...images.value];
 
-            // 切换标签
             tab.value = t;
 
-            // 获取新标签的缓存数据
             const newCache = getCurrentCache();
             images.value = [...newCache.images];
+            currentIndex.value = newCache.index || 0;
 
-            // 如果没有数据则加载
             if (images.value.length === 0) {
                 if (t === 'home') await fetchImages();
                 else await fetchCached();
             }
 
-            // 恢复滚动位置
             await nextTick();
-            if (slider.value) {
-                slider.value.scrollTop = newCache.scrollTop || 0;
-            }
+            scrollToIndex(currentIndex.value);
 
             uiHidden.value = false;
             isSwitching.value = false;
         };
 
-        // 触摸事件处理 - 左右滑动切换标签
         const onTouchStart = (e) => {
+            if (isScrolling) return;
+
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
             isHorizontalSwipe = false;
+            startScrollTop = slider.value?.scrollTop || 0;
         };
 
         const onTouchMove = (e) => {
-            if (!touchStartX || !touchStartY) return;
+            if (!touchStartX || !touchStartY || isScrolling) return;
 
             const currentX = e.touches[0].clientX;
             const currentY = e.touches[0].clientY;
@@ -224,24 +236,44 @@ createApp({
             // 判断滑动方向
             if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 10) {
                 isHorizontalSwipe = true;
+            } else if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 10) {
+                isHorizontalSwipe = false;
+                // 实时滚动
+                if (slider.value) {
+                    slider.value.scrollTop = startScrollTop + diffY;
+                }
             }
         };
 
         const onTouchEnd = (e) => {
-            if (!isHorizontalSwipe) return;
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const touchEndTime = Date.now();
+            const diffX = touchStartX - touchEndX;
+            const diffY = touchStartY - touchEndY;
+            const timeDiff = touchEndTime - touchStartTime;
+            const threshold = 60;
+            const timeThreshold = 300;
 
-            touchEndX = e.changedTouches[0].clientX;
-            const diff = touchStartX - touchEndX;
-            const threshold = 80; // 滑动阈值
-
-            if (Math.abs(diff) > threshold) {
-                if (diff > 0) {
-                    // 左滑 - 切换到下一个标签
+            // 处理水平滑动切换标签
+            if (isHorizontalSwipe && Math.abs(diffX) > threshold && timeDiff < timeThreshold) {
+                e.preventDefault();
+                if (diffX > 0) {
                     switchTab(tab.value === 'home' ? 'cached' : 'home');
                 } else {
-                    // 右滑 - 切换到上一个标签
                     switchTab(tab.value === 'cached' ? 'home' : 'cached');
                 }
+            }
+            // 处理垂直滑动切换图片 - 吸附到最近的图片
+            else if (!isHorizontalSwipe) {
+                const slideHeight = slider.value?.clientHeight || window.innerHeight;
+                const currentScrollTop = slider.value?.scrollTop || 0;
+                const targetIndex = Math.round(currentScrollTop / slideHeight);
+                
+                // 限制索引范围
+                const newIndex = Math.max(0, Math.min(targetIndex, images.value.length - 1));
+                currentIndex.value = newIndex;
+                scrollToIndex(newIndex);
             }
 
             touchStartX = 0;
@@ -249,24 +281,65 @@ createApp({
             isHorizontalSwipe = false;
         };
 
-        // 滚动处理
         const onScroll = () => {
             if (!slider.value || isSwitching.value) return;
+
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+
+            scrollTimeout = setTimeout(() => {
+                const { scrollTop, clientHeight } = slider.value;
+                const index = Math.round(scrollTop / clientHeight);
+                currentIndex.value = index;
+
+                const cache = getCurrentCache();
+                cache.index = index;
+                cache.scrollTop = scrollTop;
+            }, 150);
+
             if (scrollHandler) return;
 
             scrollHandler = requestAnimationFrame(() => {
                 const { scrollTop, scrollHeight, clientHeight } = slider.value;
                 const cache = getCurrentCache();
 
-                cache.scrollTop = scrollTop;
-
-                if (cache.hasMore && scrollTop + clientHeight > scrollHeight - 300) {
+                if (cache.hasMore && scrollTop + clientHeight > scrollHeight - 500) {
                     if (tab.value === 'home') fetchImages();
                     else fetchCached();
                 }
 
                 scrollHandler = null;
             });
+        };
+
+        const onWheel = (e) => {
+            e.preventDefault();
+
+            if (isScrolling) return;
+
+            const delta = e.deltaY;
+            const threshold = 50;
+
+            if (Math.abs(delta) < threshold) return;
+
+            isScrolling = true;
+
+            if (delta > 0) {
+                // 向下滚动
+                if (currentIndex.value < images.value.length - 1) {
+                    currentIndex.value++;
+                }
+            } else {
+                // 向上滚动
+                if (currentIndex.value > 0) {
+                    currentIndex.value--;
+                }
+            }
+
+            scrollToIndex(currentIndex.value);
+
+            setTimeout(() => {
+                isScrolling = false;
+            }, 300);
         };
 
         const formatNum = (n) => {
@@ -279,21 +352,43 @@ createApp({
             if (e.key === 'r' || e.key === 'R') refresh();
             if (e.key === 'ArrowLeft') switchTab('home');
             if (e.key === 'ArrowRight') switchTab('cached');
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (currentIndex.value > 0) {
+                    currentIndex.value--;
+                    scrollToIndex(currentIndex.value);
+                }
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (currentIndex.value < images.value.length - 1) {
+                    currentIndex.value++;
+                    scrollToIndex(currentIndex.value);
+                }
+            }
         };
 
         onMounted(() => {
-            fetchImages();
+            fetchImages().then(() => {
+                nextTick(() => {
+                    if (slider.value && currentIndex.value > 0) {
+                        const slideHeight = slider.value.clientHeight;
+                        slider.value.scrollTop = currentIndex.value * slideHeight;
+                    }
+                });
+            });
             window.addEventListener('keydown', handleKeydown);
         });
 
         onUnmounted(() => {
             window.removeEventListener('keydown', handleKeydown);
             if (scrollHandler) cancelAnimationFrame(scrollHandler);
+            if (scrollTimeout) clearTimeout(scrollTimeout);
         });
 
         return {
-            tab, images, slider, toast, animatingId, uiHidden, isRefreshing, isSwitching,
-            toggleLike, handleClick, share, switchTab, onScroll,
+            tab, images, slider, toast, animatingId, uiHidden, isRefreshing, isSwitching, isLoading, currentIndex,
+            toggleLike, handleClick, share, switchTab, onScroll, onWheel,
             onTouchStart, onTouchMove, onTouchEnd,
             formatNum, refresh
         };

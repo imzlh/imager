@@ -2,6 +2,15 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+img, .slide-img {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
 }
 
 html,
@@ -10,6 +19,7 @@ body {
     overflow: hidden;
     background: #000;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    touch-action: none;
 }
 
 #app {
@@ -27,6 +37,7 @@ body {
     justify-content: center;
     gap: 32px;
     padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top));
     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent);
     transition: opacity 0.3s;
 }
@@ -42,9 +53,11 @@ body {
     cursor: pointer;
     transition: color 0.3s;
     font-weight: 500;
+    padding: 8px 16px;
 }
 
-.nav-item:hover {
+.nav-item:hover,
+.nav-item:active {
     color: rgba(255, 255, 255, 0.9);
 }
 
@@ -56,7 +69,7 @@ body {
 .nav-item.active::after {
     content: '';
     position: absolute;
-    bottom: -4px;
+    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
     width: 20px;
@@ -80,8 +93,8 @@ body {
 .refresh-btn {
     position: absolute;
     right: 16px;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.1);
     display: flex;
@@ -89,15 +102,17 @@ body {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s;
+    -webkit-touch-callout: none;
 }
 
-.refresh-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+.refresh-btn:active {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(0.95);
 }
 
 .refresh-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     fill: #fff;
 }
 
@@ -114,8 +129,9 @@ body {
 .slider {
     height: 100%;
     overflow-y: scroll;
-    scroll-snap-type: y mandatory;
-    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    touch-action: none;
+    overscroll-behavior-y: contain;
 }
 
 .slider::-webkit-scrollbar {
@@ -124,11 +140,15 @@ body {
 
 .slide {
     height: 100vh;
-    scroll-snap-align: start;
+    min-height: 100vh;
+    max-height: 100vh;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    will-change: transform;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .slide-bg {
@@ -138,6 +158,7 @@ body {
     background-position: center;
     filter: blur(40px) brightness(0.3);
     transform: scale(1.1);
+    will-change: transform;
 }
 
 .slide-img {
@@ -147,6 +168,9 @@ body {
     object-fit: contain;
     z-index: 1;
     cursor: pointer;
+    -webkit-touch-callout: none;
+    user-select: none;
+    pointer-events: auto;
 }
 
 /* 双击动画 */
@@ -164,10 +188,17 @@ body {
 }
 
 .like-animation svg {
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 100px;
     fill: #ff4757;
     filter: drop-shadow(0 0 20px rgba(255, 71, 87, 0.5));
+}
+
+@media (max-width: 400px) {
+    .like-animation svg {
+        width: 80px;
+        height: 80px;
+    }
 }
 
 @keyframes likePop {
@@ -193,7 +224,8 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 100px 20px 40px;
+    padding: 100px 20px max(40px, env(safe-area-inset-bottom));
+    padding-right: 100px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
     z-index: 2;
     transition: opacity 0.3s;
@@ -216,6 +248,7 @@ body {
     height: 36px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
 }
 
 .author-name {
@@ -229,6 +262,7 @@ body {
     color: #fff;
     line-height: 1.5;
     margin-bottom: 8px;
+    word-break: break-word;
 }
 
 .desc {
@@ -240,16 +274,17 @@ body {
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    word-break: break-word;
 }
 
 /* 右侧操作 */
 .actions {
     position: absolute;
     right: 16px;
-    bottom: 100px;
+    bottom: max(100px, env(safe-area-inset-bottom) + 60px);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
     z-index: 3;
     transition: opacity 0.3s;
 }
@@ -265,22 +300,24 @@ body {
     align-items: center;
     gap: 4px;
     cursor: pointer;
+    -webkit-touch-callout: none;
 }
 
 .action-icon {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.15s;
+    backdrop-filter: blur(4px);
 }
 
-.action:hover .action-icon {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
+.action:active .action-icon {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(0.92);
 }
 
 .action.active .action-icon {
@@ -288,30 +325,14 @@ body {
 }
 
 .action svg {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     fill: #fff;
 }
 
 .action-num {
     font-size: 12px;
     color: #fff;
-}
-
-/* 提示文字 */
-.hint {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.4);
-    z-index: 50;
-    transition: opacity 0.3s;
-}
-
-.hint.hidden {
-    opacity: 0;
 }
 
 /* 空状态 */
@@ -334,21 +355,60 @@ body {
 /* Toast */
 .toast {
     position: fixed;
-    top: 60px;
+    top: max(60px, env(safe-area-inset-top) + 44px);
     left: 50%;
     transform: translateX(-50%) translateY(-20px);
-    background: rgba(0, 0, 0, 0.8);
-    padding: 10px 20px;
-    border-radius: 20px;
-    font-size: 13px;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
     color: #fff;
     z-index: 500;
     opacity: 0;
     transition: all 0.3s;
     pointer-events: none;
+    backdrop-filter: blur(10px);
 }
 
 .toast.show {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
+}
+
+/* 加载指示器 */
+.loading-indicator {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #ff4757;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.loading-indicator.show {
+    opacity: 1;
+}
+
+/* 移动端横屏适配 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .actions {
+        flex-direction: row;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 20px;
+        gap: 24px;
+    }
+
+    .info {
+        padding-right: 20px;
+        padding-bottom: 80px;
+    }
 }
